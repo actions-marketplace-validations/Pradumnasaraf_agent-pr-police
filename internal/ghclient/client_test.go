@@ -1,0 +1,18 @@
+package ghclient
+
+import "testing"
+
+func TestFindSticky(t *testing.T) {
+	marker := "<!-- agent-pr-police:sticky-comment -->"
+	comments := []Comment{
+		{ID: 1, Body: "first comment"},
+		{ID: 2, Body: marker + "\n## report"},
+		{ID: 3, Body: "another"},
+	}
+	if got := FindSticky(comments, marker); got != 2 {
+		t.Errorf("FindSticky = %d, want 2", got)
+	}
+	if got := FindSticky([]Comment{{ID: 1, Body: "no marker"}}, marker); got != 0 {
+		t.Errorf("FindSticky with no match = %d, want 0", got)
+	}
+}

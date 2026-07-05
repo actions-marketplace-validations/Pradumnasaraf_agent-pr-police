@@ -1,0 +1,69 @@
+name: 'Agent PR Police'
+description: 'Detect, label, and summarize pull requests opened by AI coding agents like Copilot, Claude Code, Devin, and Cursor.'
+author: 'Pradumna Saraf'
+
+branding:
+  icon: 'shield'
+  color: 'purple'
+
+inputs:
+  label:
+    description: 'Label applied to detected agent PRs. Also recognized as an agent marker if added manually.'
+    required: false
+    default: 'pr-by-ai'
+  add-label:
+    description: 'Apply the label to detected agent PRs.'
+    required: false
+    default: 'true'
+  comment:
+    description: 'Post and update a single sticky comment summarizing what the PR changed.'
+    required: false
+    default: 'true'
+  treat-all-prs-as-agent:
+    description: 'Skip detection and treat every PR as agent-authored.'
+    required: false
+    default: 'false'
+  extra-agent-identifiers:
+    description: 'Newline-separated substrings matched against the PR author login and co-author trailers, for agents not in the built-in registry.'
+    required: false
+    default: ''
+  github-token:
+    description: 'Token used to read the PR, add the label, and post the comment.'
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  is-agent-pr:
+    description: 'Whether the PR was detected as authored by an AI coding agent.'
+    value: ${{ steps.police.outputs.is-agent-pr }}
+  agent:
+    description: 'Name of the detected agent, empty if none was identified.'
+    value: ${{ steps.police.outputs.agent }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version-file: ${{ github.action_path }}/go.mod
+        cache: false
+
+    - name: Build agent-pr-police
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      run: |
+        mkdir -p "${{ github.action_path }}/bin"
+        go build -o "${{ github.action_path }}/bin/agent-pr-police" ./cmd/agent-pr-police
+
+    - name: Run agent-pr-police
+      id: police
+      shell: bash
+      env:
+        INPUT_LABEL: ${{ inputs.label }}
+        INPUT_ADD_LABEL: ${{ inputs.add-label }}
+        INPUT_COMMENT: ${{ inputs.comment }}
+        INPUT_TREAT_ALL_PRS_AS_AGENT: ${{ inputs.treat-all-prs-as-agent }}
+        INPUT_EXTRA_AGENT_IDENTIFIERS: ${{ inputs.extra-agent-identifiers }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+      run: "${{ github.action_path }}/bin/agent-pr-police"

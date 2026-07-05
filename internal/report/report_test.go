@@ -1,0 +1,63 @@
+package report
+
+import (
+	"strings"
+	"testing"
+
+	"github.com/pradumnasaraf/agent-pr-police/internal/summary"
+)
+
+func sampleSummary() summary.Summary {
+	return summary.Build([]summary.ChangedFile{
+		{Path: "internal/detect/detect.go", Status: "modified", Additions: 10, Deletions: 2},
+		{Path: "internal/report/report.go", Status: "added", Additions: 40, Deletions: 0},
+		{Path: "README.md", Status: "modified", Additions: 5, Deletions: 3},
+	})
+}
+
+func TestBuildStartsWithMarker(t *testing.T) {
+	out := Build(Input{Agent: "Claude Code", Summary: sampleSummary()})
+	if !strings.HasPrefix(out, Marker) {
+		t.Errorf("report must start with sticky marker")
+	}
+}
+
+func TestBuildNamedAgentAndSignals(t *testing.T) {
+	out := Build(Input{
+		Agent:   "Claude Code",
+		Signals: []string{"co-author trailer matched"},
+		Summary: sampleSummary(),
+	})
+	if !strings.Contains(out, "**Claude Code** coding agent") {
+		t.Errorf("expected named agent header, got: %s", out)
+	}
+	if !strings.Contains(out, "co-author trailer matched") {
+		t.Errorf("expected detection signal in output")
+	}
+}
+
+func TestBuildUnnamedAgent(t *testing.T) {
+	out := Build(Input{Summary: sampleSummary()})
+	if !strings.Contains(out, "an AI coding agent") {
+		t.Errorf("expected generic agent header when no name, got: %s", out)
+	}
+}
+
+func TestBuildSummaryContent(t *testing.T) {
+	out := Build(Input{Agent: "Devin", Summary: sampleSummary()})
+	for _, want := range []string{"3 files", "+55 / -5 lines", "1 added", "2 modified", "Top areas", "`internal/`", "`(root)`"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("expected output to contain %q, got: %s", want, out)
+		}
+	}
+}
+
+func TestBuildSingleFile(t *testing.T) {
+	out := Build(Input{
+		Agent:   "Cursor",
+		Summary: summary.Build([]summary.ChangedFile{{Path: "main.go", Status: "modified", Additions: 1, Deletions: 1}}),
+	})
+	if !strings.Contains(out, "1 file,") {
+		t.Errorf("expected singular file label, got: %s", out)
+	}
+}

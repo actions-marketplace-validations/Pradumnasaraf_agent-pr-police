@@ -49,7 +49,36 @@ permissions:
   pull-requests: write
 ```
 
-### Example workflow
+### Token
+
+No personal access token is required. The default `${{ github.token }}` can label and comment as long as the job has `pull-requests: write`, so you can leave `github-token` unset.
+
+The one exception is PRs from forks: on the `pull_request` event GitHub makes the built-in token read-only for forks, so labeling and commenting will not work there. If you need it on fork PRs, switch the trigger to `pull_request_target` or pass a token with write access via `github-token`.
+
+### Minimal workflow
+
+The shortest setup, every input uses its default:
+
+```yaml
+name: Agent PR Police
+
+on:
+  pull_request:
+
+jobs:
+  police:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Running Agent PR Police
+        uses: Pradumnasaraf/agent-pr-police@v1
+```
+
+### Full example with every option
+
+Every input is optional. The values below are the defaults, so this behaves the same as the minimal workflow above; change only what you need.
 
 > [!IMPORTANT]
 > Before using the snippet below, check the latest version in the `uses` field from the [GitHub Marketplace](https://github.com/marketplace/actions/agent-pr-police).
@@ -63,15 +92,24 @@ on:
 jobs:
   police:
     runs-on: ubuntu-latest
-
     permissions:
-      contents: read
-      pull-requests: write
-
+      contents: read # Required to read the PR
+      pull-requests: write # Required to add the label and post the comment
     steps:
       - name: Running Agent PR Police
         uses: Pradumnasaraf/agent-pr-police@v1
+        with:
+          label: pr-by-ai # Optional. Label applied to agent PRs
+          add-label: true # Optional. Apply the label
+          comment: true # Optional. Post the summary comment
+          treat-all-prs-as-agent: false # Optional. Treat every PR as agent
+          extra-agent-identifiers: | # Optional. Extra agent matches, one per line
+            acme-ai
+            my-internal-bot
+          github-token: ${{ github.token }} # Optional. Defaults to GITHUB_TOKEN
 ```
+
+Both jobs also expose outputs you can use in later steps: `is-agent-pr` (`true` or `false`) and `agent` (the detected agent name, empty if none).
 
 ## Contributing
 
